@@ -1,0 +1,54 @@
+from bs4 import BeautifulSoup
+import requests
+import pandas as pd
+from PyLyrics import *
+from tqdm import tqdm
+import re
+import numpy as np
+
+def hits_of_the_year(year, genre):
+    artists = []
+    songs = []
+
+    url ="https://playback.fm/charts/" + genre + "/" +str(year)
+    response = requests.get(url)
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    artist = soup.find_all('a',{"class":"artist"})
+    song = soup.find_all('span',{"class":"song"})
+    lyrics = []
+
+    for i in range(0,len(artist)):
+        artists.append(artist[i].text.strip())
+
+    for i in range(0,len(song),2):
+        songs.append(song[i].text.strip())
+
+
+    
+    hits = pd.DataFrame()
+    hits["Artist"] = artists
+    hits["Song"] = songs 
+    hits["Year"] = year
+
+    for i in range(0,len(hits)):
+        try:
+            #homogenize the lyrics to be lower case, one line, and with no special characters other than '.
+            lyr = re.sub('[^A-Za-z0-9\']+',' ', PyLyrics.getLyrics(singer = hits["Artist"][i], song = hits["Song"][i])).replace('\n',' ')
+            
+            #lower case and replace n' with ng
+            lyrics.append(re.sub('n\' ','ng ',lyr.lower()))
+        except:
+            lyrics.append('NA')
+        
+    hits["Lyrics"] = lyrics   
+    
+    return(hits)
+
+start = 1958
+end = 2015
+
+for year in tqdm(range(start, end)):
+    hits_of_the_year(year, rock).to_csv('Rock_Roads.txt', header=False, index=False, sep='\t', mode='a')
+    
